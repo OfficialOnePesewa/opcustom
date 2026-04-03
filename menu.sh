@@ -15,7 +15,7 @@ _src() {
   local f="$PANEL_DIR/$1"
   if [[ ! -f "$f" ]]; then
     echo -e "\033[0;31m[✗] Missing: $f"
-    echo "    Reinstall: bash <(curl -s https://raw.githubusercontent.com/OfficialOnePesewa/opcustom/main/install.sh)\033[0m"
+    echo "    Reinstall: bash <(wget -qO- https://raw.githubusercontent.com/OfficialOnePesewa/opcustom/main/install.sh)\033[0m"
     exit 1
   fi
   source "$f"
@@ -23,69 +23,83 @@ _src() {
 
 _src "core/users.sh"
 _src "core/udpgw.sh"
+_src "core/udpcustom.sh"
 _src "core/monitor.sh"
 
-# ── Colors & styles ──────────────────────────────────────────
+# ── Colors ───────────────────────────────────────────────────
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'
-C='\033[0;36m'; B='\033[1m'; W='\033[1;37m'; RESET='\033[0m'
+C='\033[0;36m'; W='\033[1;37m'; RESET='\033[0m'
 
-# ── Helper: pause ────────────────────────────────────────────
 pause() { echo ""; read -rp "  Press Enter to continue..." _; }
 
 # ── Header ───────────────────────────────────────────────────
 show_header() {
   clear
-  local udp_status
+  local udpgw_st udpcustom_st user_count ip
+
   if systemctl is-active --quiet udpgw 2>/dev/null; then
-    udp_status="${G}RUNNING${RESET}"
+    udpgw_st="${G}RUNNING${RESET}"
   else
-    udp_status="${R}STOPPED${RESET}"
+    udpgw_st="${R}STOPPED${RESET}"
   fi
 
-  local user_count
-  user_count=$(wc -l < "$PANEL_DIR/users.db" 2>/dev/null || echo 0)
+  if systemctl is-active --quiet udpcustom 2>/dev/null; then
+    udpcustom_st="${G}RUNNING${RESET}"
+  else
+    udpcustom_st="${R}STOPPED${RESET}"
+  fi
 
-  local ip
+  user_count=$(wc -l < "$PANEL_DIR/users.db" 2>/dev/null || echo 0)
   ip=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 
   echo -e "${C}"
   echo "  ╔══════════════════════════════════════════════╗"
-  echo "  ║         OPCUSTOM UDP PANEL  v2.0             ║"
-  echo "  ║      github/OfficialOnePesewa                ║"
+  echo "  ║         OPCUSTOM UDP PANEL  v2.1             ║"
+  echo "  ║       github/OfficialOnePesewa               ║"
   echo "  ╠══════════════════════════════════════════════╣"
-  printf "  ║  %-12s %-32s ║\n" "IP:" "$ip"
-  printf "  ║  %-12s " "UDPGW:"
-  echo -e "%-32b ║" "$udp_status"
-  printf "  ║  %-12s %-32s ║\n" "Users:" "$user_count"
+  printf "  ║  %-14s %-30s ║\n" "Server IP:" "$ip"
+  printf "  ║  %-14s " "UDPGW :7300:"
+  echo -e "%-30b ║" "$udpgw_st"
+  printf "  ║  %-14s " "UDP Custom:"
+  echo -e "%-30b ║" "$udpcustom_st"
+  printf "  ║  %-14s %-30s ║\n" "Users:" "$user_count"
   echo "  ╚══════════════════════════════════════════════╝"
   echo -e "${RESET}"
 }
 
-# ── Main menu ────────────────────────────────────────────────
+# ── Menu ─────────────────────────────────────────────────────
 show_menu() {
-  echo -e "${W}  ┌─────────────────────────────────────┐${RESET}"
-  echo -e "${W}  │           USER MANAGEMENT           │${RESET}"
-  echo -e "${W}  ├─────────────────────────────────────┤${RESET}"
-  echo -e "  │  ${Y}1.${RESET} Add User                         │"
-  echo -e "  │  ${Y}2.${RESET} List Users                       │"
-  echo -e "  │  ${Y}3.${RESET} Delete User                      │"
-  echo -e "${W}  ├─────────────────────────────────────┤${RESET}"
-  echo -e "${W}  │           UDPGW CONTROL             │${RESET}"
-  echo -e "${W}  ├─────────────────────────────────────┤${RESET}"
-  echo -e "  │  ${C}4.${RESET} Start UDPGW                      │"
-  echo -e "  │  ${C}5.${RESET} Stop UDPGW                       │"
-  echo -e "  │  ${C}6.${RESET} Restart UDPGW                    │"
-  echo -e "  │  ${C}7.${RESET} UDPGW Status                     │"
-  echo -e "${W}  ├─────────────────────────────────────┤${RESET}"
-  echo -e "${W}  │              TOOLS                  │${RESET}"
-  echo -e "${W}  ├─────────────────────────────────────┤${RESET}"
-  echo -e "  │  ${G}8.${RESET} Monitor Connections              │"
-  echo -e "  │  ${G}9.${RESET} View System Info                 │"
-  echo -e "${W}  ├─────────────────────────────────────┤${RESET}"
-  echo -e "  │  ${R}0.${RESET} Exit                             │"
-  echo -e "${W}  └─────────────────────────────────────┘${RESET}"
+  echo -e "${W}  ┌─────────────────────────────────────────┐${RESET}"
+  echo -e "${W}  │           USER MANAGEMENT               │${RESET}"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "  │  ${Y}1.${RESET} Add User                            │"
+  echo -e "  │  ${Y}2.${RESET} List Users                          │"
+  echo -e "  │  ${Y}3.${RESET} Delete User                         │"
+  echo -e "  │  ${Y}4.${RESET} Client Connection String            │"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "${W}  │           UDPGW CONTROL                 │${RESET}"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "  │  ${C}5.${RESET} Start UDPGW                         │"
+  echo -e "  │  ${C}6.${RESET} Stop UDPGW                          │"
+  echo -e "  │  ${C}7.${RESET} Restart UDPGW                       │"
+  echo -e "  │  ${C}8.${RESET} UDPGW Status                        │"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "${W}  │         UDP CUSTOM SERVER               │${RESET}"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "  │  ${G}9.${RESET}  Start UDP Custom                   │"
+  echo -e "  │  ${G}10.${RESET} Stop UDP Custom                    │"
+  echo -e "  │  ${G}11.${RESET} Restart UDP Custom                 │"
+  echo -e "  │  ${G}12.${RESET} UDP Custom Status                  │"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "${W}  │              TOOLS                      │${RESET}"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "  │  ${Y}13.${RESET} Monitor Connections                │"
+  echo -e "  │  ${Y}14.${RESET} System Info                        │"
+  echo -e "${W}  ├─────────────────────────────────────────┤${RESET}"
+  echo -e "  │  ${R}0.${RESET}  Exit                               │"
+  echo -e "${W}  └─────────────────────────────────────────┘${RESET}"
   echo ""
-  echo -ne "  ${B}Select option:${RESET} "
+  echo -ne "  Select: "
 }
 
 # ── Main loop ────────────────────────────────────────────────
@@ -95,17 +109,22 @@ while true; do
   read -r choice
 
   case "$choice" in
-    1) add_user;    pause ;;
-    2) list_users;  pause ;;
-    3) delete_user; pause ;;
-    4) start_udpgw;   pause ;;
-    5) stop_udpgw;    pause ;;
-    6) restart_udpgw; pause ;;
-    7) status_udpgw;  pause ;;
-    8) monitor_connections ;;
-    9) system_info; pause ;;
-    0) echo -e "\n  ${C}Goodbye!${RESET}\n"; exit 0 ;;
-    "") continue ;;
-    *) echo -e "\n  ${R}Invalid option. Try again.${RESET}"; sleep 1 ;;
+    1)  add_user;                 pause ;;
+    2)  list_users;               pause ;;
+    3)  delete_user;              pause ;;
+    4)  generate_client_string;   pause ;;
+    5)  start_udpgw;              pause ;;
+    6)  stop_udpgw;               pause ;;
+    7)  restart_udpgw;            pause ;;
+    8)  status_udpgw;             pause ;;
+    9)  start_udpcustom;          pause ;;
+    10) stop_udpcustom;           pause ;;
+    11) systemctl restart udpcustom; echo -e "  ${G}✓ Restarted.${RESET}"; pause ;;
+    12) status_udpcustom;         pause ;;
+    13) monitor_connections ;;
+    14) system_info;              pause ;;
+    0)  echo -e "\n  ${C}Goodbye!${RESET}\n"; exit 0 ;;
+    "")  continue ;;
+    *)  echo -e "\n  ${R}Invalid option.${RESET}"; sleep 1 ;;
   esac
 done
